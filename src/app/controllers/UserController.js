@@ -1,5 +1,8 @@
 import * as Yup from 'yup';
+import jwt from 'jsonwebtoken';
 import User from '../models/User';
+
+import authConfig from '../../config/auth';
 
 class UserController {
   async store(req, res) {
@@ -11,14 +14,27 @@ class UserController {
         .min(6),
     });
 
+    console.log('GOT HERE', req.body);
+
     if (!(await schema.isValid(req.body)))
       return res.status(400).json({ error: 'Validation fails' });
 
     const userExists = await User.findOne({ where: { email: req.body.email } });
+    console.log('USER EXISTS', userExists);
     if (userExists)
       return res.status(400).json({ error: 'User already exists' });
-    const { id, name, email } = await User.create(req.body);
-    return res.json({ id, name, email });
+    const { id, name, email, provider } = await User.create(req.body);
+    return res.json({
+      user: {
+        id,
+        name,
+        email,
+        provider,
+      },
+      token: jwt.sign({ id, name }, authConfig.secret, {
+        expiresIn: authConfig.expiresIn,
+      }),
+    });
   }
 
   async update(req, res) {
